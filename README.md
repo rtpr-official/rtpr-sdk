@@ -21,11 +21,12 @@ This repo contains official client SDKs in **Python**, **Java**, and **C++** for
 
 ## Why RTPR?
 
-| Feature | RTPR | Free News APIs |
-|---------|------|----------------|
+| Feature | RTPR | Free News APIs / RSS Feeds |
+|---------|------|----------------------------|
 | Latency | **< 500ms** | 3–15 minutes |
-| Delivery | WebSocket push | Polling |
+| Delivery | WebSocket push | Polling / pull |
 | Sources | Business Wire, PR Newswire, GlobeNewswire | Aggregated/delayed |
+| Structured data | Typed models (ticker, body, source) | Raw HTML / unstructured |
 | Price | $99/month | Free (but slow) |
 
 **Use cases:** FDA/PDUFA catalysts, earnings surprises, M&A announcements, contract wins — any event where milliseconds matter.
