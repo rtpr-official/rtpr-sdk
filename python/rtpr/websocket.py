@@ -5,8 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, Callable
 
 import websockets
 import websockets.exceptions
@@ -19,9 +18,6 @@ logger = logging.getLogger("rtpr.websocket")
 DEFAULT_WS_URL = "wss://ws.rtpr.io"
 INITIAL_RECONNECT_DELAY = 1.0
 MAX_RECONNECT_DELAY = 60.0
-
-ArticleCallback = Callable[[Article], Awaitable[None] | None]
-EventCallback = Callable[[dict[str, Any]], Awaitable[None] | None]
 
 
 class RtprWebSocket:
@@ -56,27 +52,27 @@ class RtprWebSocket:
         self._tickers: list[str] = []
         self._running = False
 
-        self._on_article: ArticleCallback | None = None
-        self._on_connect: EventCallback | None = None
-        self._on_disconnect: EventCallback | None = None
-        self._on_error: EventCallback | None = None
+        self._on_article: Callable[..., Any] | None = None
+        self._on_connect: Callable[..., Any] | None = None
+        self._on_disconnect: Callable[..., Any] | None = None
+        self._on_error: Callable[..., Any] | None = None
 
-    def on_article(self, callback: ArticleCallback) -> ArticleCallback:
+    def on_article(self, callback: Callable[..., Any]) -> Callable[..., Any]:
         """Register a callback for new articles. Can be used as a decorator."""
         self._on_article = callback
         return callback
 
-    def on_connect(self, callback: EventCallback) -> EventCallback:
+    def on_connect(self, callback: Callable[..., Any]) -> Callable[..., Any]:
         """Register a callback for connection events. Can be used as a decorator."""
         self._on_connect = callback
         return callback
 
-    def on_disconnect(self, callback: EventCallback) -> EventCallback:
+    def on_disconnect(self, callback: Callable[..., Any]) -> Callable[..., Any]:
         """Register a callback for disconnection events. Can be used as a decorator."""
         self._on_disconnect = callback
         return callback
 
-    def on_error(self, callback: EventCallback) -> EventCallback:
+    def on_error(self, callback: Callable[..., Any]) -> Callable[..., Any]:
         """Register a callback for error events. Can be used as a decorator."""
         self._on_error = callback
         return callback

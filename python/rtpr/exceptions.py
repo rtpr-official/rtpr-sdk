@@ -1,5 +1,7 @@
 """RTPR SDK exceptions."""
 
+from __future__ import annotations
+
 
 class RtprError(Exception):
     """Base exception for all RTPR SDK errors."""

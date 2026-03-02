@@ -16,11 +16,11 @@ jobs:
         compiler: [gcc, clang]
         include:
           - compiler: gcc
-            cc: gcc-12
-            cxx: g++-12
+            cc: gcc
+            cxx: g++
           - compiler: clang
-            cc: clang-15
-            cxx: clang++-15
+            cc: clang
+            cxx: clang++
 
     steps:
       - uses: actions/checkout@v4
