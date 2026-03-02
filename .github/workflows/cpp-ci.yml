@@ -1,0 +1,46 @@
+name: C++ CI
+
+on:
+  push:
+    branches: [main]
+    paths: ['cpp/**']
+  pull_request:
+    branches: [main]
+    paths: ['cpp/**']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+        include:
+          - compiler: gcc
+            cc: gcc-12
+            cxx: g++-12
+          - compiler: clang
+            cc: clang-15
+            cxx: clang++-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libcurl4-openssl-dev \
+            libboost-system-dev \
+            libboost-dev \
+            libssl-dev \
+            nlohmann-json3-dev
+
+      - name: Build
+        working-directory: cpp
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: |
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)

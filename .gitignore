@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Java
+target/
+*.class
+*.jar
+*.war
+*.ear
+.idea/
+*.iml
+.settings/
+.project
+.classpath
+
+# C++
+build/
+cmake-build-*/
+*.o
+*.a
+*.so
+*.dylib
+*.out
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
