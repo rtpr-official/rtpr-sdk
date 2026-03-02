@@ -7,9 +7,11 @@
 
 <p align="center">
   <a href="https://github.com/rtpr-io/rtpr-sdk/actions/workflows/python-ci.yml"><img src="https://github.com/rtpr-io/rtpr-sdk/actions/workflows/python-ci.yml/badge.svg" alt="Python CI"></a>
+  <a href="https://github.com/rtpr-io/rtpr-sdk/actions/workflows/node-ci.yml"><img src="https://github.com/rtpr-io/rtpr-sdk/actions/workflows/node-ci.yml/badge.svg" alt="Node.js CI"></a>
   <a href="https://github.com/rtpr-io/rtpr-sdk/actions/workflows/java-ci.yml"><img src="https://github.com/rtpr-io/rtpr-sdk/actions/workflows/java-ci.yml/badge.svg" alt="Java CI"></a>
   <a href="https://github.com/rtpr-io/rtpr-sdk/actions/workflows/cpp-ci.yml"><img src="https://github.com/rtpr-io/rtpr-sdk/actions/workflows/cpp-ci.yml/badge.svg" alt="C++ CI"></a>
   <a href="https://pypi.org/project/rtpr/"><img src="https://img.shields.io/pypi/v/rtpr" alt="PyPI"></a>
+  <a href="https://www.npmjs.com/package/@rtpr-io/rtpr"><img src="https://img.shields.io/npm/v/@rtpr-io/rtpr" alt="npm"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
 </p>
 
@@ -17,7 +19,7 @@
 
 **RTPR** delivers press releases from Business Wire, PR Newswire, and GlobeNewswire the moment they hit the wire — the same sub-500ms speed used by hedge funds, now available at $99/month.
 
-This repo contains official client SDKs in **Python**, **Java**, and **C++** for both the REST API and WebSocket streaming API.
+This repo contains official client SDKs in **Python**, **Node.js/TypeScript**, **Java**, and **C++** for both the REST API and WebSocket streaming API.
 
 ## Why RTPR?
 
@@ -71,6 +73,38 @@ asyncio.run(ws.connect(tickers=["AAPL", "TSLA"]))
 ```
 
 > See [python/](python/) for full docs, async client, and more examples.
+
+### Node.js / TypeScript
+
+```bash
+npm install @rtpr-io/rtpr
+```
+
+```typescript
+import { RtprClient } from "@rtpr-io/rtpr";
+
+const client = new RtprClient("your_api_key");
+const articles = await client.getArticles(10);
+for (const a of articles) {
+  console.log(`${a.ticker}: ${a.title}`);
+}
+```
+
+**WebSocket streaming:**
+
+```typescript
+import { RtprWebSocket } from "@rtpr-io/rtpr";
+
+const ws = new RtprWebSocket("your_api_key");
+
+ws.onArticle((article) => {
+  console.log(`${article.ticker}: ${article.title}`);
+});
+
+await ws.connect(["AAPL", "TSLA"]);
+```
+
+> See [node/](node/) for full docs, TypeScript types, and more examples.
 
 ### Java
 
@@ -139,15 +173,15 @@ ws.connect({"AAPL", "TSLA"});
 
 ## Feature Matrix
 
-| Feature | Python | Java | C++ |
-|---------|--------|------|-----|
-| REST API | Yes | Yes | Yes |
-| WebSocket streaming | Yes | Yes | Yes |
-| Typed models | Yes (dataclasses) | Yes (POJOs) | Yes (structs) |
-| Auto-reconnect | Yes | Yes | Yes |
-| Ping/pong heartbeat | Yes | Yes | Yes |
-| Async support | Yes (asyncio) | CompletableFuture | Blocking |
-| Package manager | pip (PyPI) | Maven Central | CMake (FetchContent) |
+| Feature | Python | Node.js | Java | C++ |
+|---------|--------|---------|------|-----|
+| REST API | Yes | Yes | Yes | Yes |
+| WebSocket streaming | Yes | Yes | Yes | Yes |
+| Typed models | Yes (dataclasses) | Yes (TypeScript) | Yes (POJOs) | Yes (structs) |
+| Auto-reconnect | Yes | Yes | Yes | Yes |
+| Ping/pong heartbeat | Yes | Yes | Yes | Yes |
+| Async support | Yes (asyncio) | Yes (Promises) | CompletableFuture | Blocking |
+| Package manager | pip (PyPI) | npm (@rtpr-io/rtpr) | Maven Central | CMake (FetchContent) |
 
 ## API Overview
 
@@ -178,11 +212,11 @@ Full API documentation: [rtpr.io/docs](https://rtpr.io/docs)
 
 Each SDK includes ready-to-run examples:
 
-| Example | Python | Java | C++ |
-|---------|--------|------|-----|
-| Quick start (REST) | [quickstart.py](python/examples/quickstart.py) | [QuickStart.java](java/examples/QuickStart.java) | [quickstart.cpp](cpp/examples/quickstart.cpp) |
-| WebSocket streaming | [stream_firehose.py](python/examples/stream_firehose.py) | [StreamArticles.java](java/examples/StreamArticles.java) | [stream_articles.cpp](cpp/examples/stream_articles.cpp) |
-| Trading bot | [trading_bot_example.py](python/examples/trading_bot_example.py) | — | — |
+| Example | Python | Node.js | Java | C++ |
+|---------|--------|---------|------|-----|
+| Quick start (REST) | [quickstart.py](python/examples/quickstart.py) | [quickstart.ts](node/examples/quickstart.ts) | [QuickStart.java](java/examples/QuickStart.java) | [quickstart.cpp](cpp/examples/quickstart.cpp) |
+| WebSocket streaming | [stream_firehose.py](python/examples/stream_firehose.py) | [stream-firehose.ts](node/examples/stream-firehose.ts) | [StreamArticles.java](java/examples/StreamArticles.java) | [stream_articles.cpp](cpp/examples/stream_articles.cpp) |
+| Trading bot | [trading_bot_example.py](python/examples/trading_bot_example.py) | — | — | — |
 
 ## Project Structure
 
@@ -190,6 +224,10 @@ Each SDK includes ready-to-run examples:
 rtpr-sdk/
 ├── python/          Python SDK (pip install rtpr)
 │   ├── rtpr/        Package source
+│   ├── examples/    Usage examples
+│   └── tests/       Unit tests
+├── node/            Node.js SDK (npm install @rtpr-io/rtpr)
+│   ├── src/         TypeScript source
 │   ├── examples/    Usage examples
 │   └── tests/       Unit tests
 ├── java/            Java SDK (Maven)

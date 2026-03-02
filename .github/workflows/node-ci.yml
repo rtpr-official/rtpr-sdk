@@ -1,0 +1,40 @@
+name: Node.js CI
+
+on:
+  push:
+    branches: [main]
+    paths: ['node/**']
+  pull_request:
+    branches: [main]
+    paths: ['node/**']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['18', '20', '22']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies
+        working-directory: node
+        run: npm ci
+
+      - name: Type check
+        working-directory: node
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: node
+        run: npm run build
+
+      - name: Run tests
+        working-directory: node
+        run: npm test
