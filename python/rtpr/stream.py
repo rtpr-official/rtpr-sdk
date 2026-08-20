@@ -16,7 +16,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import unquote, urlencode, urlsplit
 
 import httpx
 import websockets
@@ -108,6 +108,26 @@ def _require_text(frame: Mapping[str, object], name: str) -> str:
     return value
 
 
+def _article_id_from_url(article_url: str) -> str:
+    parsed_url = urlsplit(article_url)
+    if parsed_url.scheme != "https" or not parsed_url.netloc:
+        raise ProtocolError()
+
+    prefix = "/a/"
+    if not parsed_url.path.startswith(prefix):
+        raise ProtocolError()
+    encoded_id = parsed_url.path[len(prefix) :]
+    if not encoded_id or "/" in encoded_id:
+        raise ProtocolError()
+    try:
+        article_id = unquote(encoded_id, encoding="utf-8", errors="strict")
+    except UnicodeDecodeError:
+        raise ProtocolError() from None
+    if not article_id.strip() or len(article_id) > 16 * 1024:
+        raise ProtocolError()
+    return article_id
+
+
 def parse_alert_frame(
     frame: Mapping[str, object],
     *,
@@ -123,12 +143,9 @@ def parse_alert_frame(
 
     if frame.get("type") != "alert":
         raise ProtocolError()
-    article_id = _require_text(frame, "article_id")
     ticker = _require_text(frame, "ticker")
     article_url = _require_text(frame, "article_url")
-    parsed_url = urlsplit(article_url)
-    if parsed_url.scheme != "https" or not parsed_url.netloc:
-        raise ProtocolError()
+    article_id = _article_id_from_url(article_url)
 
     raw_rules = frame.get("rules")
     if not isinstance(raw_rules, list) or not raw_rules or len(raw_rules) > 256:

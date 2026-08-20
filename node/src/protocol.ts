@@ -52,6 +52,35 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function articleIdFromUrl(articleUrl: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(articleUrl);
+  } catch {
+    throw new ProtocolError("Alert frame article_url must be an absolute URL");
+  }
+
+  const prefix = "/a/";
+  if (!parsed.pathname.startsWith(prefix)) {
+    throw new ProtocolError("Alert frame article_url must use the /a/{article_id} path");
+  }
+  const encodedId = parsed.pathname.slice(prefix.length);
+  if (encodedId.length === 0 || encodedId.includes("/")) {
+    throw new ProtocolError("Alert frame article_url must contain one article ID");
+  }
+
+  let articleId: string;
+  try {
+    articleId = decodeURIComponent(encodedId);
+  } catch {
+    throw new ProtocolError("Alert frame article_url contains an invalid article ID");
+  }
+  if (articleId.trim().length === 0 || articleId.length > MAX_FIELD_LENGTH) {
+    throw new ProtocolError("Alert frame article_url contains an invalid article ID");
+  }
+  return articleId;
+}
+
 export function parseServerMessage(input: string | Buffer): ParsedServerMessage {
   const byteLength =
     typeof input === "string" ? Buffer.byteLength(input, "utf8") : input.byteLength;
@@ -118,15 +147,16 @@ export function parseServerMessage(input: string | Buffer): ParsedServerMessage 
   if (!Number.isFinite(Date.parse(articlePublishedAt))) {
     throw new ProtocolError("Alert frame article_published_at must be an ISO timestamp");
   }
+  const articleUrl = requiredString(value, "article_url");
 
   return {
     kind: "alert",
     alert: Object.freeze({
-      articleId: requiredString(value, "article_id"),
+      articleId: articleIdFromUrl(articleUrl),
       ticker: requiredString(value, "ticker"),
       ruleNames: Object.freeze(uniqueRuleNames),
       articlePublishedAt,
-      articleUrl: requiredString(value, "article_url"),
+      articleUrl,
       dispatchedAtMs,
     }),
   };

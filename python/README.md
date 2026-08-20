@@ -42,13 +42,16 @@ from rtpr import AlertStream
 
 stream = AlertStream("api-key")
 
+
 @stream.on_event
 def display(event):
     print(event.ticker, len(event.raw_bytes))
 
+
 @stream.on_error
 def report(error):
     print(type(error).__name__, error)
+
 
 with stream:
     input("Press Enter to stop cleanly\n")
@@ -64,11 +67,13 @@ consumption cannot be mixed on one stream.
 import asyncio
 from rtpr import AlertStream
 
+
 async def main():
     async with AlertStream("api-key") as stream:
         async for event in stream:
             print(len(event.raw_bytes), event.timings["fetch_round_trip_ms"])
             break
+
 
 asyncio.run(main())
 ```

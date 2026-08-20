@@ -40,15 +40,25 @@ def test_parse_saved_rule_alert_and_merge_names_in_frame() -> None:
         event.ticker = "OTHER"  # type: ignore[misc]
 
 
+def test_parse_derives_percent_encoded_article_id_from_permalink() -> None:
+    article_url = "https://signed.rtpr.test/a/article%20one%2Fpart?exp=1776629999&sig=SIGNED"
+    frame = json.loads(alert_frame("unused", article_url=article_url))
+
+    event = parse_alert_frame(frame)
+
+    assert event.article_id == "article one/part"
+    assert event.article_url == article_url
+
+
 @pytest.mark.parametrize(
     "change",
     [
-        {"article_id": ""},
         {"ticker": None},
         {"rules": []},
         {"rules": [{"wrong": "name"}]},
         {"article_published_at": "not-a-date"},
         {"article_url": "http://unsigned.test/a"},
+        {"article_url": "https://signed.rtpr.test/not-a-permalink/article-invalid"},
         {"dispatched_at_ms": True},
     ],
 )

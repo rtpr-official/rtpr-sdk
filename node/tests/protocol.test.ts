@@ -10,7 +10,6 @@ describe("saved-rule alert protocol", () => {
     const parsed = parseServerMessage(
       JSON.stringify({
         type: "alert",
-        article_id: "article-1",
         ticker: "RTPR",
         rules: [
           { rule_name: "Display rule" },
@@ -25,8 +24,28 @@ describe("saved-rule alert protocol", () => {
 
     expect(parsed.kind).toBe("alert");
     if (parsed.kind === "alert") {
+      expect(parsed.alert.articleId).toBe("article-1");
       expect(parsed.alert.articleUrl).toBe(articleUrl);
       expect(parsed.alert.ruleNames).toEqual(["Display rule", "Second rule"]);
+    }
+  });
+
+  it("decodes the article ID from the permalink path", () => {
+    const parsed = parseServerMessage(
+      JSON.stringify({
+        type: "alert",
+        ticker: "RTPR",
+        rules: [{ rule_name: "Display rule" }],
+        article_published_at: "2026-08-19T20:00:00.000Z",
+        article_url:
+          "https://rtpr.io/a/article%20one%2Fpart?exp=1776629999&sig=SIGNED",
+        dispatched_at_ms: 1_787_169_601_250,
+      }),
+    );
+
+    expect(parsed.kind).toBe("alert");
+    if (parsed.kind === "alert") {
+      expect(parsed.alert.articleId).toBe("article one/part");
     }
   });
 

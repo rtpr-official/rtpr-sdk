@@ -143,7 +143,6 @@ export class MockRTPRServer {
   ): void {
     this.send({
       type: "alert",
-      article_id: id,
       ticker: options.ticker ?? "RTPR",
       rules: (options.rules ?? ["Display rule"]).map((ruleName) => ({
         rule_name: ruleName,

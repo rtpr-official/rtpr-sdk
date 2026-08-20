@@ -20,7 +20,7 @@ def diagnostic_json(report: str) -> dict[str, object]:
 
 def test_event_and_window_reports_are_copy_ready_and_redacted() -> None:
     signed_url = (
-        "https://signed.rtpr.test/a/diagnostic?signature=SIGNED-URL-SECRET&apiKey=QUERY-SECRET"
+        "https://signed.rtpr.test/a/diagnostic-id?signature=SIGNED-URL-SECRET&apiKey=QUERY-SECRET"
     )
     raw_secret = b"<html>RAW-CONTENT-SECRET</html>"
     rule_secret = "CUSTOMER-RULE-SECRET"

@@ -23,7 +23,6 @@ def alert_frame(
     return json.dumps(
         {
             "type": "alert",
-            "article_id": article_id,
             "ticker": ticker,
             "rules": [{"rule_name": name} for name in rules],
             "article_published_at": "2026-08-19T20:00:00.000Z",
