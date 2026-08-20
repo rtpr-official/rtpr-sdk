@@ -1,119 +1,92 @@
-# RTPR Node.js SDK
+# RTPR Node.js SDK 0.2.0
 
-Official Node.js/TypeScript SDK for [RTPR](https://rtpr.io) — real-time press releases in under 500ms.
-
-## Installation
+Push-only saved-rule alerts with the exact raw bytes fetched from each signed
+article URL. WebSocket, HTTP, retry, keepalive, and body reads run in a bounded
+worker thread; customer handlers run on the application thread.
 
 ```bash
 npm install @rtpr-io/rtpr
 ```
 
-## Quick Start
-
-### REST API
+## Quickstart
 
 ```typescript
-import { RtprClient } from "@rtpr-io/rtpr";
+import { AlertStream } from "@rtpr-io/rtpr";
 
-const client = new RtprClient("your_api_key");
-
-// Get recent articles across all tickers
-const articles = await client.getArticles(10);
-for (const article of articles) {
-  console.log(`[${article.ticker}] ${article.title}`);
-}
-
-// Get articles for a specific ticker
-const aapl = await client.getArticlesByTicker("AAPL");
-```
-
-### WebSocket Streaming
-
-```typescript
-import { RtprWebSocket } from "@rtpr-io/rtpr";
-
-const ws = new RtprWebSocket("your_api_key");
-
-ws.onArticle((article) => {
-  console.log(`[${article.ticker}] ${article.title}`);
+const stream = new AlertStream(process.env.RTPR_API_KEY, {
+  fetchConcurrency: 8,
 });
 
-await ws.connect(["AAPL", "TSLA"]);
+stream.onEvent(async (event) => {
+  console.log(
+    event.articleId,
+    `${event.raw.byteLength} exact bytes`,
+    `${event.timing.fetchRoundTripMs.toFixed(1)} ms fetch`,
+  );
+
+  // Copy this redacted text into a support request when needed.
+  console.log(event.supportReport());
+});
+
+stream.onError((error) => {
+  // BackpressureError exposes articleId and the original articleUrl for an
+  // explicit refetch. Do not put signed articleUrl values in ordinary logs.
+  console.error(error.name, error.code);
+});
+
+await stream.start();
+process.once("SIGINT", () => void stream.close());
 ```
 
-### Firehose (All Tickers)
+AsyncIterable consumption is also supported:
 
 ```typescript
-await ws.connect(["*"]);
+const stream = new AlertStream(); // falls back to RTPR_API_KEY
+await stream.start();
+
+for await (const event of stream) {
+  console.log(event.raw.byteLength, event.timing.fetchRoundTripMs);
+}
 ```
 
-## API Reference
+Choose callbacks or one AsyncIterator; the SDK rejects mixing both consumption
+modes. Errors are available through `onError()`, `pollError()`, and
+`drainErrors()`. `stream.stats()` returns bounded queue, retry, overload,
+reconnect, loop-lag, ping, and keepalive health counters.
 
-### `new RtprClient(apiKey, options?)`
+For a redacted window report:
 
-REST client for querying articles.
+```typescript
+const copyReady = stream.supportReport(600);
+```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `baseUrl` | `string` | `https://api.rtpr.io` | API base URL |
-| `timeoutMs` | `number` | `30000` | Request timeout in milliseconds |
+Both report forms contain a concise summary and an
+`RTPR_SUPPORT_DIAGNOSTIC_V1` JSON record. Reports contain no API key, signed
+URL/query, content, rule names, customer identity, hostname, or IP address.
+Treat origin timing on a Cloudflare `HIT` as metadata from the earlier cache
+fill; use it as current-origin evidence only on `MISS` or `DYNAMIC` responses.
 
-**Methods:**
+## Data and use guardrails
 
-- `getArticles(limit?)` — Recent articles across all tickers (default limit: 20, max: 100)
-- `getArticlesByTicker(ticker, limit?)` — Articles for a specific ticker (default limit: 50, max: 100)
-- `health()` — API health check
+- Authenticate every deployment with its own authorized RTPR API key.
+- Content is for human-decision and display-only workflows.
+- The SDK does not parse, normalize, or persist article content.
+- Do not persist content unless your RTPR agreement explicitly permits it.
+- Do not redistribute raw bytes, signed URLs, or derived content.
+- Treat `event.raw` as untrusted bytes and apply display-layer safety controls.
 
-All methods return Promises.
+## Runtime behavior
 
-### `new RtprWebSocket(apiKey, options?)`
+- Connects only to `wss://ws.rtpr.io/ws-alerts?apiKey=...`.
+- Fetches each exact signed `articleUrl` immediately with `X-API-Key`.
+- Rejects redirects and transfers the raw `ArrayBuffer` from the worker without
+  a worker/main-thread body copy.
+- Retries only network failures, selected 5xx responses, and a brief 404
+  availability race, all within one configured deadline.
+- Uses TTL/LRU successful-delivery dedupe and merges duplicate rule names while
+  an article is pending.
+- Bounds pending fetches and unacknowledged results by item count and bytes.
+  Overload is explicit through `BackpressureError`.
+- Sends periodic worker-side `HEAD https://rtpr.io/a/_sdk_keepalive` checks.
 
-Real-time WebSocket streaming client with auto-reconnect and exponential backoff.
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `wsUrl` | `string` | `wss://ws.rtpr.io` | WebSocket URL |
-| `autoReconnect` | `boolean` | `true` | Reconnect on disconnect |
-
-**Methods:**
-
-- `connect(tickers?)` — Connect and start streaming (returns a Promise)
-- `subscribe(tickers)` — Add tickers to subscription
-- `unsubscribe(tickers)` — Remove tickers (pass `["*"]` to clear all)
-- `stop()` — Disconnect and prevent reconnection
-- `connected` — `boolean` property for connection state
-
-**Event handlers (chainable):**
-
-- `onArticle(callback)` — New article received
-- `onConnect(callback)` — Connection established
-- `onDisconnect(callback)` — Connection lost
-- `onError(callback)` — Error occurred
-
-### `Article`
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `ticker` | `string` | Primary stock ticker |
-| `title` | `string` | Article headline |
-| `author` | `string` | PR wire source (Business Wire, PR Newswire, etc.) |
-| `created` | `string` | ISO timestamp |
-| `articleBody` | `string` | Plain text body |
-| `articleBodyHtml` | `string` | Original HTML body |
-| `exchange` | `string` | Exchange name |
-| `id` | `string` | Unique article ID |
-| `tickers` | `string[]` | All associated tickers |
-
-### Errors
-
-| Class | Status | Description |
-|-------|--------|-------------|
-| `RtprError` | varies | Base error class |
-| `AuthenticationError` | 401 | Invalid or missing API key |
-| `RateLimitError` | 429 | Exceeded 60 requests/minute |
-| `ConnectionError` | — | WebSocket connection failure |
-
-## Requirements
-
-- Node.js 18+
-- TypeScript 5+ (if using TypeScript)
+Node.js 18 or newer is required.

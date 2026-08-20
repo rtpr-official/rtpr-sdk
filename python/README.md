@@ -1,87 +1,88 @@
-# RTPR Python SDK
+# RTPR Python SDK 0.2.0
 
-Official Python SDK for [RTPR](https://rtpr.io) — real-time press releases in under 500ms.
+`AlertStream` receives push-only saved-rule alerts and fetches each alert's
+exact signed article response as immutable `bytes`. Its WebSocket, HTTP client,
+warm fetch workers, retries, and keepalive run on a dedicated network thread.
 
-## Installation
+Python 3.9–3.13 is supported.
+
+## Install
 
 ```bash
 pip install rtpr
 ```
 
-## Quick Start
-
-### REST API
+## Quickstart
 
 ```python
-from rtpr import RtprClient
+import os
 
-client = RtprClient("your_api_key")
+from rtpr import AlertStream
 
-# Get recent articles across all tickers
-articles = client.get_articles(limit=10)
-for article in articles:
-    print(f"[{article.ticker}] {article.title}")
+with AlertStream(os.environ["RTPR_API_KEY"]) as stream:
+    event = stream.get(timeout=30)
+    print(
+        event.article_id,
+        len(event.raw_bytes),
+        f"{event.timings['fetch_round_trip_ms']:.1f} ms",
+    )
 
-# Get articles for a specific ticker
-aapl = client.get_articles_by_ticker("AAPL")
+    # Copy this redacted text when contacting RTPR support.
+    print(event.support_report())
+    print(stream.support_report(window_seconds=600))
 ```
 
-### WebSocket Streaming
+`raw_bytes` is the unparsed response body. The SDK neither decodes nor
+normalizes it, follows redirects, nor writes article content to storage.
+
+### Callback consumption
+
+```python
+from rtpr import AlertStream
+
+stream = AlertStream("api-key")
+
+@stream.on_event
+def display(event):
+    print(event.ticker, len(event.raw_bytes))
+
+@stream.on_error
+def report(error):
+    print(type(error).__name__, error)
+
+with stream:
+    input("Press Enter to stop cleanly\n")
+```
+
+Callbacks run outside the network thread, so a slow display handler does not
+block WebSocket intake or article fetch workers. Callback and iterator/pull
+consumption cannot be mixed on one stream.
+
+### Async iteration
 
 ```python
 import asyncio
-from rtpr import RtprWebSocket
+from rtpr import AlertStream
 
-ws = RtprWebSocket("your_api_key")
+async def main():
+    async with AlertStream("api-key") as stream:
+        async for event in stream:
+            print(len(event.raw_bytes), event.timings["fetch_round_trip_ms"])
+            break
 
-@ws.on_article
-async def handle(article):
-    print(f"[{article.ticker}] {article.title}")
-
-asyncio.run(ws.connect(tickers=["AAPL", "TSLA"]))
+asyncio.run(main())
 ```
 
-### Async REST
+Lifecycle, fetch, protocol, and overload errors are available through
+`get_error()`, `poll_error()`, and `on_error()`. A `BackpressureError` retains
+`article_id` and the original `article_url` as attributes for an explicit
+refetch, while its text and diagnostics omit the signed URL.
 
-```python
-from rtpr import AsyncRtprClient
+Origin timing on a Cloudflare `HIT` describes the earlier cache fill. Treat it
+as current-origin evidence only when `CF-Cache-Status` is `MISS` or `DYNAMIC`.
 
-async with AsyncRtprClient("your_api_key") as client:
-    articles = await client.get_articles(limit=10)
-```
+## Usage guardrails
 
-## API Reference
-
-### `RtprClient(api_key, *, base_url, timeout)`
-
-Synchronous REST client.
-
-- `get_articles(limit=20)` — Recent articles across all tickers
-- `get_articles_by_ticker(ticker, limit=50)` — Articles for a specific ticker
-- `health()` — API health check
-
-### `AsyncRtprClient(api_key, *, base_url, timeout)`
-
-Async REST client with the same methods (all awaitable).
-
-### `RtprWebSocket(api_key, *, ws_url, auto_reconnect)`
-
-Real-time WebSocket streaming client.
-
-- `connect(tickers)` — Connect and start streaming (blocking)
-- `subscribe(tickers)` — Add tickers to subscription
-- `unsubscribe(tickers)` — Remove tickers
-- `stop()` — Disconnect
-- `@on_article` — Decorator for article callbacks
-- `@on_connect` — Decorator for connection callbacks
-- `@on_error` — Decorator for error callbacks
-
-### `Article`
-
-Dataclass with fields: `ticker`, `title`, `author`, `created`, `article_body`, `exchange`, `article_body_html`, `id`, `tickers`.
-
-## Requirements
-
-- Python 3.9+
-- `httpx` for REST
-- `websockets` for WebSocket
+This SDK output is for display and human decision support only. Do not persist
+or redistribute article bytes. Keep the API key and signed URLs private. Apply
+your own review and authorization controls before showing content to a user.

@@ -1,15 +1,35 @@
-export { RtprClient } from "./client";
-export type { RtprClientOptions } from "./client";
-
-export { RtprWebSocket } from "./websocket";
-export type { RtprWebSocketOptions } from "./websocket";
-
-export type { Article, ArticlesResponse } from "./models";
-export { parseArticle, parseArticlesResponse } from "./models";
-
+export { AlertStream } from "./alert-stream";
+export { AlertEvent, RawArticleEvent } from "./events";
 export {
-  RtprError,
+  AlertStreamError,
   AuthenticationError,
+  AuthorizationError,
   RateLimitError,
   ConnectionError,
+  ProtocolError,
+  FetchError,
+  RedirectRejectedError,
+  BackpressureError,
+  HandlerError,
+  ConfigurationError,
+  StreamClosedError,
 } from "./errors";
+
+export type {
+  AlertStreamOptions,
+  AlertEventHandler,
+  AlertErrorHandler,
+  AlertStreamState,
+  DiagnosticHeaders,
+  EventTiming,
+  EventMilestones,
+  EventBurstSnapshot,
+  EventBurstState,
+  WallClockEstimates,
+  StreamStats,
+  StreamCounters,
+  QueueStats,
+  WorkerHealthStats,
+  KeepaliveStats,
+  DurationPercentiles,
+} from "./types";

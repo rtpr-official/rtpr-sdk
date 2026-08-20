@@ -1,47 +1,51 @@
 {
   "name": "@rtpr-io/rtpr",
-  "version": "0.1.0",
-  "description": "Official Node.js SDK for RTPR — real-time press releases in under 500ms",
+  "version": "0.2.0",
+  "description": "Official Node.js SDK for RTPR saved-rule alerts and exact raw article bytes",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
   "files": [
     "dist/"
   ],
   "scripts": {
     "build": "tsc",
+    "pretest": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint src/",
-    "prepublishOnly": "npm run build"
+    "typecheck": "tsc --noEmit",
+    "prepack": "npm run build"
   },
   "keywords": [
     "rtpr",
     "press-releases",
-    "real-time",
-    "financial-news",
-    "trading",
-    "algorithmic-trading",
+    "saved-rule-alerts",
+    "raw-bytes",
     "websocket",
-    "api",
-    "stock-news",
-    "business-wire",
-    "pr-newswire"
+    "api"
   ],
   "author": "RTPR <support@rtpr.io>",
   "license": "MIT",
   "homepage": "https://rtpr.io",
   "repository": {
     "type": "git",
-    "url": "https://github.com/rtpr-io/rtpr-sdk",
+    "url": "git+https://github.com/rtpr-official/rtpr-sdk.git",
     "directory": "node"
   },
   "bugs": {
-    "url": "https://github.com/rtpr-io/rtpr-sdk/issues"
+    "url": "https://github.com/rtpr-official/rtpr-sdk/issues"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "undici": "^6.28.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {

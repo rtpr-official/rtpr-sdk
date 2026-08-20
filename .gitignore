@@ -13,30 +13,10 @@ venv/
 .ruff_cache/
 .pytest_cache/
 
-# Java
-target/
-*.class
-*.jar
-*.war
-*.ear
-.idea/
-*.iml
-.settings/
-.project
-.classpath
-
-# C++
-build/
-cmake-build-*/
-*.o
-*.a
-*.so
-*.dylib
-*.out
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-Makefile
+# Node.js
+node_modules/
+dist/
+*.tsbuildinfo
 
 # IDE
 .vscode/
