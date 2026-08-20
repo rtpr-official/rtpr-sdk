@@ -13,9 +13,7 @@ npm install @rtpr-io/rtpr
 ```typescript
 import { AlertStream } from "@rtpr-io/rtpr";
 
-const stream = new AlertStream(process.env.RTPR_API_KEY, {
-  fetchConcurrency: 8,
-});
+const stream = new AlertStream(process.env.RTPR_API_KEY);
 
 stream.onEvent(async (event) => {
   console.log(

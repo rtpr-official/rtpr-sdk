@@ -34,7 +34,7 @@ def make_stream(
     )
 
 
-def test_brief_404_and_retryable_5xx_then_exact_success() -> None:
+def test_brief_404_retryable_5xx_and_cloudflare_526_then_exact_success() -> None:
     calls = 0
     raw = b"first\r\nsecond\x00third"
 
@@ -49,6 +49,8 @@ def test_brief_404_and_retryable_5xx_then_exact_success() -> None:
                 headers={"Retry-After": "0"},
                 request=request,
             )
+        if calls == 3:
+            return httpx.Response(526, request=request)
         return httpx.Response(200, content=raw, request=request)
 
     socket = ScriptedWebSocket([alert_frame("retry-article")])
@@ -57,13 +59,13 @@ def test_brief_404_and_retryable_5xx_then_exact_success() -> None:
     try:
         event = stream.get(timeout=2)
         assert event.raw_bytes == raw
-        assert event.attempts == 3
-        assert calls == 3
-        assert stream.stats()["counters"]["fetch_retries"] == 2
+        assert event.attempts == 4
+        assert calls == 4
+        assert stream.stats()["counters"]["fetch_retries"] == 3
         get_requests = [request for request in http.requests if request.method == "GET"]
         assert [str(request.url) for request in get_requests] == [
             "https://signed.rtpr.test/a/retry-article?signature=SIGNED-retry-article"
-        ] * 3
+        ] * 4
         assert all(request.headers["x-api-key"] == API_KEY for request in get_requests)
     finally:
         stream.close()

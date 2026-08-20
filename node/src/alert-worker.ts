@@ -38,7 +38,9 @@ import type {
 
 const PRODUCTION_WEBSOCKET_URL = "wss://ws.rtpr.io/ws-alerts";
 const PRODUCTION_KEEPALIVE_URL = "https://rtpr.io/a/_sdk_keepalive";
-const RETRYABLE_FETCH_STATUSES = new Set([500, 502, 503, 504]);
+// 526 is Cloudflare failing TLS validation against the RTPR origin on an
+// edge subrequest; observed transient in production, and the GET is idempotent.
+const RETRYABLE_FETCH_STATUSES = new Set([500, 502, 503, 504, 526]);
 const MAX_404_RACE_MS = 2_000;
 const LOOP_LAG_INTERVAL_MS = 1_000;
 
@@ -296,10 +298,12 @@ export class AlertWorkerRuntime {
     this.#resultItemCredits = data.initialResultItemCredits;
     this.#resultByteCredits = data.initialResultByteCredits;
     this.#errorCredits = data.initialErrorCredits;
+    // keepAliveTimeout must outlive the keepalive heartbeat interval so idle
+    // warm connections survive quiet periods instead of closing between HEADs.
     this.#dispatcher = new Agent({
       connections: data.config.fetchConcurrency,
       pipelining: 1,
-      keepAliveTimeout: 30_000,
+      keepAliveTimeout: 120_000,
       keepAliveMaxTimeout: 120_000,
     });
   }

@@ -40,7 +40,7 @@ import type {
 } from "./worker-protocol";
 
 const DEFAULTS: ResolvedAlertStreamConfig = Object.freeze({
-  fetchConcurrency: 8,
+  fetchConcurrency: 32,
   maxPendingFetches: 256,
   maxResultItems: 32,
   maxResultBytes: 32 * 1024 * 1024,

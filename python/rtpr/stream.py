@@ -52,7 +52,9 @@ from rtpr.exceptions import (
 
 WSS_ENDPOINT = "wss://ws.rtpr.io/ws-alerts"
 KEEPALIVE_URL = "https://rtpr.io/a/_sdk_keepalive"
-_RETRYABLE_FETCH_STATUSES = frozenset({500, 502, 503, 504})
+# 526 is Cloudflare failing TLS validation against the RTPR origin on an
+# edge subrequest; observed transient in production, and the GET is idempotent.
+_RETRYABLE_FETCH_STATUSES = frozenset({500, 502, 503, 504, 526})
 _REDIRECT_STATUSES = frozenset({300, 301, 302, 303, 307, 308})
 _ERROR_CALLBACK_STOP = object()
 _logger = logging.getLogger("rtpr.alert_stream")
@@ -245,8 +247,8 @@ class AlertStream(Iterator[RawArticleEvent], AsyncIterator[RawArticleEvent]):
         self,
         api_key: str,
         *,
-        max_in_flight: int = 8,
-        max_pending_fetches: int = 64,
+        max_in_flight: int = 32,
+        max_pending_fetches: int = 256,
         result_queue_max_items: int = 64,
         result_queue_max_bytes: int = 64 * 1024 * 1024,
         fetch_deadline_seconds: float = 15.0,
@@ -874,10 +876,19 @@ class AlertStream(Iterator[RawArticleEvent], AsyncIterator[RawArticleEvent]):
     def _make_http_client(self) -> httpx.AsyncClient:
         if self._http_client_factory is not None:
             return self._http_client_factory()
+        # keepalive_expiry must outlive the keepalive heartbeat interval;
+        # httpx's 5-second default would close idle pool connections between
+        # heartbeats and turn every post-lull fetch into a cold TLS handshake.
+        keepalive_expiry = max(120.0, self._keepalive_interval_seconds * 2)
         return httpx.AsyncClient(
             follow_redirects=False,
             timeout=httpx.Timeout(self._request_timeout_seconds),
             headers={"User-Agent": "rtpr-python/0.2.0"},
+            limits=httpx.Limits(
+                max_connections=self._max_in_flight,
+                max_keepalive_connections=self._max_in_flight,
+                keepalive_expiry=keepalive_expiry,
+            ),
         )
 
     async def _websocket_supervisor(self) -> None:

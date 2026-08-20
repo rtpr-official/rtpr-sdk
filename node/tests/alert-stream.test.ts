@@ -151,13 +151,18 @@ describe("AlertStream transport", () => {
     expect(await waitForError(stream)).toBeInstanceOf(RateLimitError);
   });
 
-  it("retries transient 5xx and rejects redirects without following them", async () => {
+  it("retries transient 5xx and Cloudflare 526, rejecting redirects", async () => {
     const attempts = new Map<string, number>();
     server.articleHandler = (_request, response, id) => {
       const attempt = (attempts.get(id) ?? 0) + 1;
       attempts.set(id, attempt);
       if (id === "retry" && attempt === 1) {
         response.writeHead(503);
+        response.end();
+        return;
+      }
+      if (id === "retry" && attempt === 2) {
+        response.writeHead(526);
         response.end();
         return;
       }
@@ -180,7 +185,7 @@ describe("AlertStream transport", () => {
     const iterator = stream[Symbol.asyncIterator]();
     server.sendAlert("retry");
     expect((await nextEvent(iterator)).raw.toString()).toBe("retried");
-    expect(attempts.get("retry")).toBe(2);
+    expect(attempts.get("retry")).toBe(3);
 
     server.sendAlert("redirect");
     const error = await waitForError(

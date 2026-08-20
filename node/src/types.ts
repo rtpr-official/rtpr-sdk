@@ -20,7 +20,7 @@ export type DiagnosticHeaderName = (typeof DIAGNOSTIC_HEADER_NAMES)[number];
 export type DiagnosticHeaders = Readonly<Partial<Record<DiagnosticHeaderName, string>>>;
 
 export interface AlertStreamOptions {
-  /** Concurrent warm HTTP connections and article fetches. Default: 8. */
+  /** Concurrent warm HTTP connections and article fetches. Default: 32. */
   readonly fetchConcurrency?: number;
   /** Maximum queued plus active article fetches. Default: 256. */
   readonly maxPendingFetches?: number;
