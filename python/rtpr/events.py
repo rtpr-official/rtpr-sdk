@@ -41,7 +41,12 @@ class AlertRule:
 
 @dataclass(frozen=True)
 class AlertEvent:
-    """A validated saved-rule alert received from the RTPR WebSocket."""
+    """A validated alert received from the RTPR WebSocket.
+
+    ``alert_kind`` is ``"rule_match"`` for saved-rule alerts and
+    ``"high_impact"`` for Impact Score (Beta) alerts, which carry no rule
+    names and provide score metadata in :attr:`impact` instead.
+    """
 
     article_id: str
     ticker: str
@@ -51,11 +56,15 @@ class AlertEvent:
     dispatched_at_ms: int
     received_at: datetime
     _received_monotonic: float = field(repr=False, compare=False)
+    alert_kind: str = "rule_match"
+    impact: Mapping[str, Any] | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "rules", tuple(self.rules))
         object.__setattr__(self, "article_published_at", _as_utc(self.article_published_at))
         object.__setattr__(self, "received_at", _as_utc(self.received_at))
+        if self.impact is not None:
+            object.__setattr__(self, "impact", MappingProxyType(dict(self.impact)))
 
     @property
     def rule_names(self) -> tuple[str, ...]:
@@ -147,6 +156,14 @@ class RawArticleEvent:
     @property
     def received_at(self) -> datetime:
         return self.alert.received_at
+
+    @property
+    def alert_kind(self) -> str:
+        return self.alert.alert_kind
+
+    @property
+    def impact(self) -> Mapping[str, Any] | None:
+        return self.alert.impact
 
     @property
     def content_type(self) -> str | None:

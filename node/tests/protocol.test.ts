@@ -27,6 +27,8 @@ describe("saved-rule alert protocol", () => {
       expect(parsed.alert.articleId).toBe("article-1");
       expect(parsed.alert.articleUrl).toBe(articleUrl);
       expect(parsed.alert.ruleNames).toEqual(["Display rule", "Second rule"]);
+      expect(parsed.alert.alertKind).toBe("rule_match");
+      expect(parsed.alert.impact).toBeNull();
     }
   });
 
@@ -47,6 +49,42 @@ describe("saved-rule alert protocol", () => {
     if (parsed.kind === "alert") {
       expect(parsed.alert.articleId).toBe("article one/part");
     }
+  });
+
+  it("parses impact-score frames without rules and rejects unknown kinds", () => {
+    const parsed = parseServerMessage(
+      JSON.stringify({
+        type: "alert",
+        alert_kind: "high_impact",
+        ticker: "BMRA",
+        impact_score: 92,
+        impact_tier: "high",
+        impact_direction: "bullish",
+        event_type: "fda_approval",
+        band_hit_rate: 0.41,
+        article_published_at: "2026-08-24T12:30:00.000Z",
+        article_url: "https://rtpr.io/a/impact-1?exp=1776629999&sig=SIGNED",
+        dispatched_at_ms: 1_787_169_601_250,
+      }),
+    );
+
+    expect(parsed.kind).toBe("alert");
+    if (parsed.kind === "alert") {
+      expect(parsed.alert.alertKind).toBe("high_impact");
+      expect(parsed.alert.articleId).toBe("impact-1");
+      expect(parsed.alert.ruleNames).toEqual([]);
+      expect(parsed.alert.impact).toEqual({
+        impact_score: 92,
+        impact_tier: "high",
+        impact_direction: "bullish",
+        event_type: "fda_approval",
+        band_hit_rate: 0.41,
+      });
+    }
+
+    expect(() =>
+      parseServerMessage('{"type":"alert","alert_kind":"mystery"}'),
+    ).toThrow(ProtocolError);
   });
 
   it("accepts connected and creates correlated pong frames", () => {

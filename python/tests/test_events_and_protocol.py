@@ -40,6 +40,66 @@ def test_parse_saved_rule_alert_and_merge_names_in_frame() -> None:
         event.ticker = "OTHER"  # type: ignore[misc]
 
 
+def test_parse_high_impact_frame_without_rules() -> None:
+    frame = json.loads(alert_frame("impact-1"))
+    del frame["rules"]
+    frame["alert_kind"] = "high_impact"
+    frame["impact_score"] = 92
+    frame["impact_tier"] = "high"
+    frame["impact_direction"] = "bullish"
+    frame["event_type"] = "fda_approval"
+    frame["band_hit_rate"] = 0.41
+
+    event = parse_alert_frame(frame)
+
+    assert event.alert_kind == "high_impact"
+    assert event.rule_names == ()
+    assert event.impact is not None
+    assert event.impact["impact_score"] == 92
+    assert event.impact["impact_tier"] == "high"
+    assert event.impact["impact_direction"] == "bullish"
+    assert event.impact["event_type"] == "fda_approval"
+    assert event.impact["band_hit_rate"] == 0.41
+
+
+def test_rule_match_frames_expose_default_kind_and_no_impact() -> None:
+    event = parse_alert_frame(json.loads(alert_frame("plain-rule")))
+
+    assert event.alert_kind == "rule_match"
+    assert event.impact is None
+
+
+def test_high_impact_frames_fetch_and_deliver_raw_bytes() -> None:
+    frame = json.loads(alert_frame("impact-stream"))
+    del frame["rules"]
+    frame["alert_kind"] = "high_impact"
+    frame["impact_score"] = 88
+
+    async def response(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"impact-body", request=request)
+
+    socket = ScriptedWebSocket([json.dumps(frame)])
+    http = HTTPFactory(response)
+    stream = AlertStream(
+        API_KEY,
+        _websocket_connector=ScriptedConnector([socket]),
+        _http_client_factory=http,
+        keepalive_interval_seconds=300,
+        shutdown_grace_seconds=0.2,
+    )
+    try:
+        event = stream.get(timeout=2)
+        assert event.raw_bytes == b"impact-body"
+        assert event.alert_kind == "high_impact"
+        assert event.impact is not None
+        assert event.impact["impact_score"] == 88
+        assert event.rule_names == ()
+        with pytest.raises(queue.Empty):
+            stream.get_error(timeout=0.01)
+    finally:
+        stream.close()
+
+
 def test_parse_derives_percent_encoded_article_id_from_permalink() -> None:
     article_url = "https://signed.rtpr.test/a/article%20one%2Fpart?exp=1776629999&sig=SIGNED"
     frame = json.loads(alert_frame("unused", article_url=article_url))
@@ -56,6 +116,7 @@ def test_parse_derives_percent_encoded_article_id_from_permalink() -> None:
         {"ticker": None},
         {"rules": []},
         {"rules": [{"wrong": "name"}]},
+        {"alert_kind": "mystery"},
         {"article_published_at": "not-a-date"},
         {"article_url": "http://unsigned.test/a"},
         {"article_url": "https://signed.rtpr.test/not-a-permalink/article-invalid"},

@@ -35,6 +35,10 @@ with AlertStream(os.environ["RTPR_API_KEY"]) as stream:
 `raw_bytes` is the unparsed response body. The SDK neither decodes nor
 normalizes it, follows redirects, nor writes article content to storage.
 
+Impact Score (Beta) alerts arrive on the same stream with
+`event.alert_kind == "high_impact"`, empty `rule_names`, and score metadata in
+`event.impact`; the article bytes are fetched exactly like rule alerts.
+
 ### Callback consumption
 
 ```python

@@ -76,6 +76,8 @@ fill; use it as current-origin evidence only on `MISS` or `DYNAMIC` responses.
 ## Runtime behavior
 
 - Connects only to `wss://ws.rtpr.io/ws-alerts?apiKey=...`.
+- Handles saved-rule and Impact Score (Beta) frames; score alerts arrive with
+  `event.alertKind === "high_impact"`, empty `ruleNames`, and `event.impact`.
 - Fetches each exact signed `articleUrl` immediately with `X-API-Key`.
 - Rejects redirects and transfers the raw `ArrayBuffer` from the worker without
   a worker/main-thread body copy.

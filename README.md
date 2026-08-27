@@ -58,6 +58,8 @@ await stream.start();
 ## Runtime contract
 
 - Alerts are push-only; the SDK never subscribes to an article stream.
+- Saved-rule and Impact Score (Beta) `high_impact` frames are both fetched;
+  score frames carry no rule names and expose score metadata instead.
 - `article_url` is fetched immediately and exactly as supplied.
 - `X-API-Key` is sent as a fallback if a signed URL expires during transit.
 - Redirects are never followed.

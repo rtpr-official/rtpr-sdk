@@ -7,11 +7,17 @@ const MAX_RULES = 256;
 export interface ParsedAlertFrame {
   readonly articleId: string;
   readonly ticker: string;
+  /**
+   * "rule_match" for saved-rule alerts; "high_impact" for Impact Score (Beta)
+   * alerts, which carry no rule names and provide `impact` metadata instead.
+   */
+  readonly alertKind: "rule_match" | "high_impact";
   readonly ruleNames: readonly string[];
   readonly articlePublishedAt: string;
   /** The exact string supplied in `article_url`; it is never normalized. */
   readonly articleUrl: string;
   readonly dispatchedAtMs: number;
+  readonly impact: Readonly<Record<string, string | number>> | null;
 }
 
 export interface ParsedPingFrame {
@@ -116,8 +122,24 @@ export function parseServerMessage(input: string | Buffer): ParsedServerMessage 
     throw new ProtocolError("RTPR sent an unsupported alert frame type");
   }
 
-  const rules = value.rules;
-  if (!Array.isArray(rules) || rules.length === 0 || rules.length > MAX_RULES) {
+  const alertKindRaw = value.alert_kind;
+  let alertKind: "rule_match" | "high_impact";
+  if (alertKindRaw === undefined) {
+    alertKind = "rule_match";
+  } else if (alertKindRaw === "high_impact") {
+    alertKind = "high_impact";
+  } else {
+    throw new ProtocolError("Alert frame alert_kind is unsupported");
+  }
+
+  // Impact Score (Beta) frames are documented without a rules array; every
+  // other alert must name at least one matched rule.
+  const rules = value.rules ?? (alertKind === "high_impact" ? [] : undefined);
+  if (
+    !Array.isArray(rules) ||
+    (rules.length === 0 && alertKind !== "high_impact") ||
+    rules.length > MAX_RULES
+  ) {
     throw new ProtocolError("Alert frame rules must be a non-empty bounded array");
   }
 
@@ -132,6 +154,24 @@ export function parseServerMessage(input: string | Buffer): ParsedServerMessage 
       seenRuleNames.add(ruleName);
       uniqueRuleNames.push(ruleName);
     }
+  }
+
+  let impact: Record<string, string | number> | null = null;
+  if (alertKind === "high_impact") {
+    impact = {};
+    for (const key of ["impact_score", "band_hit_rate"] as const) {
+      const item = value[key];
+      if (typeof item === "number" && Number.isFinite(item)) {
+        impact[key] = item;
+      }
+    }
+    for (const key of ["impact_tier", "impact_direction", "event_type"] as const) {
+      const item = value[key];
+      if (typeof item === "string" && item.trim().length > 0 && item.length <= 256) {
+        impact[key] = item;
+      }
+    }
+    Object.freeze(impact);
   }
 
   const dispatchedAtMs = value.dispatched_at_ms;
@@ -154,10 +194,12 @@ export function parseServerMessage(input: string | Buffer): ParsedServerMessage 
     alert: Object.freeze({
       articleId: articleIdFromUrl(articleUrl),
       ticker: requiredString(value, "ticker"),
+      alertKind,
       ruleNames: Object.freeze(uniqueRuleNames),
       articlePublishedAt,
       articleUrl,
       dispatchedAtMs,
+      impact,
     }),
   };
 }

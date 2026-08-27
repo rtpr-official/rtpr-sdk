@@ -6,6 +6,7 @@ import asyncio
 import inspect
 import json
 import logging
+import math
 import queue
 import random
 import threading
@@ -110,6 +111,21 @@ def _require_text(frame: Mapping[str, object], name: str) -> str:
     return value
 
 
+def _impact_details(frame: Mapping[str, object]) -> dict[str, object]:
+    """Collect well-typed Impact Score (Beta) metadata from a frame."""
+
+    details: dict[str, object] = {}
+    for name in ("impact_score", "band_hit_rate"):
+        value = frame.get(name)
+        if not isinstance(value, bool) and isinstance(value, (int, float)) and math.isfinite(value):
+            details[name] = value
+    for name in ("impact_tier", "impact_direction", "event_type"):
+        value = frame.get(name)
+        if isinstance(value, str) and value.strip() and len(value) <= 256:
+            details[name] = value
+    return details
+
+
 def _article_id_from_url(article_url: str) -> str:
     parsed_url = urlsplit(article_url)
     if parsed_url.scheme != "https" or not parsed_url.netloc:
@@ -145,12 +161,23 @@ def parse_alert_frame(
 
     if frame.get("type") != "alert":
         raise ProtocolError()
+    alert_kind = frame.get("alert_kind", "rule_match")
+    if alert_kind not in ("rule_match", "high_impact"):
+        raise ProtocolError()
     ticker = _require_text(frame, "ticker")
     article_url = _require_text(frame, "article_url")
     article_id = _article_id_from_url(article_url)
 
+    # Impact Score (Beta) frames are documented without a rules array; every
+    # other alert must name at least one matched rule.
     raw_rules = frame.get("rules")
-    if not isinstance(raw_rules, list) or not raw_rules or len(raw_rules) > 256:
+    if raw_rules is None and alert_kind == "high_impact":
+        raw_rules = []
+    if (
+        not isinstance(raw_rules, list)
+        or (not raw_rules and alert_kind != "high_impact")
+        or len(raw_rules) > 256
+    ):
         raise ProtocolError()
     names: list[str] = []
     seen_names: set[str] = set()
@@ -185,6 +212,8 @@ def parse_alert_frame(
         _received_monotonic=(
             time.monotonic() if received_monotonic is None else received_monotonic
         ),
+        alert_kind=alert_kind,
+        impact=_impact_details(frame) if alert_kind == "high_impact" else None,
     )
 
 

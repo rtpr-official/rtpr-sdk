@@ -83,16 +83,21 @@ function burstSnapshot(
 export class AlertEvent {
   public readonly articleId: string;
   public readonly ticker: string;
+  /** "rule_match" for saved-rule alerts; "high_impact" for Impact Score (Beta). */
+  public readonly alertKind: "rule_match" | "high_impact";
   public readonly ruleNames: readonly string[];
   public readonly rules: readonly Readonly<{ ruleName: string }>[];
   public readonly articlePublishedAt: string;
   public readonly articleUrl: string;
   public readonly dispatchedAtMs: number;
   public readonly receivedAtUtc: string;
+  /** Impact Score (Beta) metadata; null for rule-match alerts. */
+  public readonly impact: Readonly<Record<string, string | number>> | null;
 
   protected constructor(alert: ParsedAlertFrame, receivedAtUtc: string) {
     this.articleId = alert.articleId;
     this.ticker = alert.ticker;
+    this.alertKind = alert.alertKind;
     this.ruleNames = Object.freeze([...alert.ruleNames]);
     this.rules = Object.freeze(
       alert.ruleNames.map((ruleName) => Object.freeze({ ruleName })),
@@ -102,6 +107,8 @@ export class AlertEvent {
     Object.defineProperty(this, "articleUrl", { enumerable: false });
     this.dispatchedAtMs = alert.dispatchedAtMs;
     this.receivedAtUtc = receivedAtUtc;
+    // Re-freeze after the structured-clone transfer from the worker thread.
+    this.impact = alert.impact === null ? null : Object.freeze({ ...alert.impact });
   }
 }
 
